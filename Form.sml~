@@ -22,7 +22,7 @@ structure Form :> FORM = struct
 		LogicalAbsurdum | Identifier of string | LogicalNot |
 		LogicalAnd | LogicalOr | LogicalImplies | LParen | RParen |
 		LogicalExistential | LogicalUniversal | Dot | Comma | Slash |
-		LBracket | RBracket | Turnstile
+		LBracket | RBracket | Turnstile | Space | Colon
 	exception LexicalError
 	fun tokenize [] = []
 		| tokenize ( #"-" :: #">" :: cs) = (LogicalImplies :: tokenize(cs))
@@ -41,8 +41,10 @@ structure Form :> FORM = struct
 		| tokenize ( #"/" :: cs) = (Slash :: tokenize(cs))
 		| tokenize ( #"[" :: cs) = (LBracket :: tokenize(cs))
 		| tokenize ( #"]" :: cs) = (RBracket :: tokenize(cs))
-		| tokenize (#"|" :: #"-" ::cs ) = (Turnstile :: tokenize(cs))
+		| tokenize ( #"|" :: #"-" ::cs ) = (Turnstile :: tokenize(cs))
 		| tokenize ( #"," :: cs) = (Comma :: tokenize(cs))
+		| tokenize ( #" " :: cs) = (Space :: tokenize(cs))
+		| tokenize ( #":" :: cs) = (Colon :: tokenize(cs))
 		| tokenize (c :: cs) = 
 			let
 				fun getcharlist [] = []
@@ -63,7 +65,9 @@ structure Form :> FORM = struct
 					| getcharlist ( #"/" :: cs) = []
 					| getcharlist ( #"[" :: cs) = []
 					| getcharlist ( #"]" :: cs) = []
-					| getcharlist (#"|" :: #"-" ::cs ) = []
+					| getcharlist ( #"|" :: #"-" ::cs ) = []
+					| getcharlist ( #" " :: cs) = []
+					| getcharlist ( #":" :: cs) = []
 					| getcharlist (x :: xs) = x::getcharlist(xs)
 				fun getrempart [] = []
 					| getrempart ( #"-" :: #">" :: xs) = ( #"-" :: #">" :: xs)
@@ -83,7 +87,9 @@ structure Form :> FORM = struct
 					| getrempart ( #"/" :: cs) = ( #"/" :: cs)
 					| getrempart ( #"[" :: cs) = ( #"[" :: cs)
 					| getrempart ( #"]" :: cs) = ( #"]" :: cs)
-					| getrempart (#"|" :: #"-" ::cs ) = (#"|" :: #"-" ::cs )
+					| getrempart ( #"|" :: #"-" ::cs ) = ( #"|" :: #"-" ::cs )
+					| getrempart ( #" " :: cs) = ( #" " :: cs)
+					| getrempart ( #":" :: cs) = ( #":" :: cs)
 					| getrempart (x :: xs) = getrempart(xs)
 			in (Identifier(String.implode(getcharlist(c::cs)))::tokenize(getrempart(c::cs)))
 			end	
@@ -128,7 +134,7 @@ structure Form :> FORM = struct
 		end
 	and parse_and fm = 
 		let
-			val ( f , fm') = parse_atom fm
+			val ( f , fm') = parse_substitution fm
 		in
 			case fm'
 				of (LogicalAnd :: fm'') =>
@@ -139,6 +145,31 @@ structure Form :> FORM = struct
 					end
 				| _ => (f, fm')
 		end
+	and parse_substitution fm = 
+		let
+			val (f , fm') = parse_atom fm
+			fun getSubsList (Identifier(f')::Slash::Identifier(f'')::RBracket::fm'') = [(Vrbl(f'),Vrbl(f''))]
+				| getSubsList (Identifier(f')::Slash::Identifier(f'')::Comma::fm'') = (Vrbl(f'),Vrbl(f''))::getSubsList(fm'')
+				| getSubsList (_) = raise SyntaxError "Wierd Substitution"
+			fun getRemList (Identifier(f')::Slash::Identifier(f'')::RBracket::fm'') = fm''
+				| getRemList (Identifier(f')::Slash::Identifier(f'')::Comma::fm'') = getRemList(fm'')
+				| getRemList (_) = raise SyntaxError "Wierd Substitution"
+			fun doSubstitute(f,[]) = f      (* Single Bracket multi variable *)
+				| doSubstitute(f,(f',f'')::rem) = doSubstitute(Substitution(f,f',f''),rem)
+			fun multiSubstitute(f,fm') =     (* Multi Bracket multi variable *)
+				let
+					val fm'' = getRemList(fm')
+					val fm''' = getSubsList(fm')
+				in
+					case fm''
+						of LBracket::x => multiSubstitute(doSubstitute(f,fm'''),x)
+						| (_) => (doSubstitute(f,fm'''),fm'')
+				end
+		in
+			case fm'
+				of (LBracket::fm'') => (multiSubstitute(f,fm''))
+				| (_) => (f,fm')
+		end
 	and parse_atom nil = raise SyntaxError ("Factor Expected \n")
 		| parse_atom (LogicalNot :: fm) = 
 			let
@@ -146,14 +177,38 @@ structure Form :> FORM = struct
 			in
 				(Negation f , fm')
 			end
+		| parse_atom (LogicalUniversal::fm) =
+			let
+				fun applyUniversal(x,y) = 
+					let
+						val ( f , fm' ) = parse_imp(x)
+					in (Universal(y,f),fm')
+					end
+			in
+				case fm
+					of Identifier(x)::Dot::xs => applyUniversal(xs,Vrbl(x))
+					| (_) => raise SyntaxError "Unable to quantify "
+			end
+		| parse_atom (LogicalExistential::fm) =
+			let
+				fun applyExistential(x,y) = 
+					let
+						val ( f , fm' ) = parse_imp(x)
+					in (Existential(y,f),fm')
+					end
+			in
+				case fm
+					of Identifier(x)::Dot::xs => applyExistential(xs,Vrbl(x))
+					| (_) => raise SyntaxError "Unable to quantify "
+			end
 		| parse_atom ((Identifier f) :: fm) = 
 			let
 				fun getVarList (RParen :: xs) = []
-					| getVarList (Identifier(f) :: xs) = [Vrbl(f)]
+					| getVarList (Identifier(f) :: RParen :: xs) = [Vrbl(f)]
 					| getVarList (Identifier(f) :: Comma :: xs) = Vrbl(f) :: getVarList(xs)
 					| getVarList (_) = raise SyntaxError " RParen or Variable Expected"
 				fun getRemPart (RParen :: xs) = xs
-					| getRemPart (Identifier(f) :: xs) = xs
+					| getRemPart (Identifier(f) :: RParen :: xs) = xs
 					| getRemPart (Identifier(f) :: Comma :: xs) = getRemPart(xs)
 					| getRemPart (_) = raise SyntaxError " RParen or Variable Expected"
 			in

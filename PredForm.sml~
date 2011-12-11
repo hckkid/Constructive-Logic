@@ -1,5 +1,5 @@
 use "Set.sml";
-signature FORM = sig
+signature PREDFORM = sig
 	datatype token =
 		LogicalAbsurdum | Identifier of string | LogicalNot |
 		LogicalAnd | LogicalOr | LogicalImplies | LParen | RParen |
@@ -16,7 +16,7 @@ signature FORM = sig
 	val parse : string -> form
 	val format : form -> string
 end
-structure Form :> FORM = struct
+structure PredForm :> PREDFORM = struct
 	datatype token =
 		LogicalAbsurdum | Identifier of string | LogicalNot |
 		LogicalAnd | LogicalOr | LogicalImplies | LParen | RParen |
