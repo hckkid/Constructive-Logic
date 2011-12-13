@@ -7,6 +7,10 @@ signature NATURALDEDUCTION = sig
 	exception TreeException of string
 	val parse_node : Form.token list -> deductionNode * Form.token list
 	val fetchInput : string -> Form.token list
+	val isAxiom : deductionNode -> bool
+	val isImplintro : deductionNode*deductionNode -> bool
+	val isImplelim : deductionNode*deductionNode*deductionNode -> bool
+	val isValidTree : deductionTree ->bool
 end
 structure NaturalDeduction :> NATURALDEDUCTION = struct
 	datatype packet = Packet of Form.vrbl*Form.form
@@ -95,5 +99,48 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 				in p
 				end
 		in getTreeFromtuple(deductTree(fetchInput(str),[]))
+		end
+	fun isAxiom(dNode(lst1,f1)) =
+		let
+			fun belongsNew([],f) = false
+				| belongsNew(Packet(x,f1)::xs,f) = true
+				| belongsNew(y::ys,f) = belongsNew(ys,f)
+		in belongsNew(lst1,f1)
+		end
+	fun isImplintro(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val lst3 = Set.diff(lst1,lst2)
+		in case (lst3,f2)
+			of ([Packet(x,y)],Form.Implication(z,t)) => if (y=z andalso t=f1) then true else false
+			| (x,z) => false
+		end
+	fun isImplelim(dNode(lst1,f1),dNode(lst2,f2),dNode(lst3,f3)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2) andalso Set.equals(lst2,lst3) andalso Set.equals(lst1,lst3))
+		in case (f1,f2,truthVal)
+			of (Form.Implication(x,y),Form.Implication(z,t),true) => if (x=f2 andalso y=f3 ) then true else if
+																	(z=f1 andalso t=f3 ) then true else false
+			| (Form.Implication(x,y),z,true) => if (x=f2 andalso y=f3) then true else false
+			| (z,Form.Implication(x,y),true) => if (x=f1 andalso y=f3) then true else false
+			| (x,y,false) => false
+		end
+	fun getRoot(dTree(nd)) = nd
+		| getRoot(dTree1(nd,tr1)) = nd
+		| getRoot(dTree2(nd,tr1,tr2)) = nd
+		| getRoot(dTree3(nd,tr1,tr2,tr3)) = nd
+	fun isValidTree(dt) = 
+		let
+			val inf1 = [isAxiom]
+			val inf2 = [isImplintro]
+			val inf3 = [isImplelim]
+			val inf4 = []
+			fun applier([],nds) = false
+				| applier(x::xs,nds) = if(x(nds)) then true else applier(xs,nds)
+		in case dt
+			of dTree(nd) => applier(inf1,nd)
+			| dTree1(nd,tr1) => applier(inf2,(getRoot(tr1),nd)) andalso isValidTree(tr1)
+			| dTree2(nd,tr1,tr2) => applier(inf3,(getRoot(tr1),getRoot(tr2),nd)) andalso isValidTree(tr1) andalso isValidTree(tr2)
+			| dTree3(nd,tr1,tr2,tr3) => applier(inf4,(getRoot(tr1),getRoot(tr2),getRoot(tr3),nd)) andalso isValidTree(tr1) andalso isValidTree(tr2) andalso isValidTree(tr3)
+			| f => false
 		end
 end;

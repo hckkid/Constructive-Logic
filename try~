@@ -1,2 +1,6 @@
-x:Hello,y:Bye,z:Hello->Bye|-Hello->Bye
-	z:Hello->Bye|-Hello->Bye
+|-Hello->Hello
+	|-(Bye->Bye)->Hello->Hello
+		x:Bye->Bye|-Hello->Hello
+		x:Bye->Bye,y:Hello|-Hello
+	|-(Bye->Bye)
+		x:Bye|-Bye

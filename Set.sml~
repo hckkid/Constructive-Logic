@@ -11,7 +11,6 @@ signature SET = sig
 	val powerSet : ''a myset -> ''a myset myset
 	val subset : ''a myset * ''a myset -> bool
 	val equals : ''a myset * ''a myset -> bool
-	val diff : ''a myset * ''a myset -> ''a myset
 end
 structure Set :> SET = struct
 	type ''a myset = ''a list
@@ -43,6 +42,4 @@ structure Set :> SET = struct
 		| subset(x::xs,[]) = false
 		| subset(x::xs,y) = if (belongs(x,y)) then subset(xs,y) else false
 	fun equals(x,y) = if (subset(x,y) andalso subset(y,x)) then true else false
-	fun diff([],y) = []
-		| diff(x::xs,y) = if (belongs(x,y)) then diff(xs,y) else x::diff(xs,y)
 end;
