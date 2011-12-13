@@ -1,6 +1,9 @@
-|-Hello->Hello
-	|-(Bye->Bye)->Hello->Hello
-		x:Bye->Bye|-Hello->Hello
-		x:Bye->Bye,y:Hello|-Hello
-	|-(Bye->Bye)
-		x:Bye|-Bye
+x:Hello,y:Bye|-Hello&&Bye
+	x:Hello,y:Bye|-Hello||Bye
+		x:Hello,y:Bye|-Hello
+	x:Hello,y:Bye,z:Hello|-Hello&&Bye
+		x:Hello,y:Bye,z:Hello|-Hello
+		x:Hello,y:Bye,z:Hello|-Bye
+	x:Hello,y:Bye,z':Hello|-Hello&&Bye
+		x:Hello,y:Bye,z':Hello|-Hello
+		x:Hello,y:Bye,z':Hello|-Bye

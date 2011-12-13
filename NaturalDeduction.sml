@@ -107,12 +107,53 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 				| belongsNew(y::ys,f) = belongsNew(ys,f)
 		in belongsNew(lst1,f1)
 		end
+	fun isAbsurdelim(dNode(lst1,f1),dNode(lst2,f2)) = 
+		let
+			val flg = Set.equals(lst1,lst2) andalso (f1=Form.Absurdum) andalso not(f2=Form.Absurdum)
+		in flg
+		end
 	fun isImplintro(dNode(lst1,f1),dNode(lst2,f2)) =
 		let
 			val lst3 = Set.diff(lst1,lst2)
 		in case (lst3,f2)
 			of ([Packet(x,y)],Form.Implication(z,t)) => if (y=z andalso t=f1) then true else false
 			| (x,z) => false
+		end
+	fun isConjintro(dNode(lst1,f1),dNode(lst2,f2),dNode(lst3,f3)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2) andalso Set.equals(lst2,lst3) andalso Set.equals(lst1,lst3))
+		in case (f3,truthVal)
+			of (Form.Conjunction(x,y),true) => if (x=f1 andalso y=f2 ) then true else if
+																	(x=f2 andalso y=f1 ) then true else false
+			| (x,y) => false
+		end
+	fun isConjelimlt(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f1,truthVal)
+			of (Form.Conjunction(x,y),true) => if (x=f2) then true else false
+			| (x,y) => false
+		end
+	fun isConjelimrt(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f1,truthVal)
+			of (Form.Conjunction(x,y),true) => if (y=f2) then true else false
+			| (x,y) => false
+		end
+	fun isDisjuncintrolt(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f2,truthVal)
+			of (Form.Disjunction(x,y),true) => if (x=f1) then true else false
+			| (x,y) => false
+		end
+	fun isDisjuncintrort(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f2,truthVal)
+			of (Form.Disjunction(x,y),true) => if (y=f1) then true else false
+			| (x,y) => false
 		end
 	fun isImplelim(dNode(lst1,f1),dNode(lst2,f2),dNode(lst3,f3)) =
 		let
@@ -122,7 +163,22 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 																	(z=f1 andalso t=f3 ) then true else false
 			| (Form.Implication(x,y),z,true) => if (x=f2 andalso y=f3) then true else false
 			| (z,Form.Implication(x,y),true) => if (x=f1 andalso y=f3) then true else false
-			| (x,y,false) => false
+			| (x,y,z) => false
+		end
+	fun isDisjuncelim(dNode(lst1,f1),dNode(lst2,f2),dNode(lst3,f3),dNode(lst4,f4)) =
+		let
+			val truthVal = if (Set.equals(lst1,lst4) andalso not(Set.equals(lst2,lst4) orelse Set.equals(lst3,lst4))) then Form.Identifier("1")
+						 	else if (Set.equals(lst2,lst4) andalso not(Set.equals(lst1,lst4) orelse Set.equals(lst3,lst4))) then Form.Identifier("2")
+							else if (Set.equals(lst3,lst4) andalso not(Set.equals(lst2,lst4) orelse Set.equals(lst1,lst4))) then Form.Identifier("3")
+							else Form.Identifier("0")
+			val dfl1 = Set.diff(lst1,lst4)
+			val dfl2 = Set.diff(lst2,lst4)
+			val dfl3 = Set.diff(lst3,lst4)
+		in case (truthVal,dfl1,dfl2,dfl3)
+			of (Form.Identifier("1"),[],[Packet(x,f1')],[Packet(y,f2')]) => if ((f1=Form.Disjunction(f1',f2') orelse f1=Form.Disjunction(f2',f1')) andalso (f2=f4) andalso (f3=f4)) then (print("Bingo");true) else false
+			| (Form.Identifier("2"),[Packet(x,f1')],[],[Packet(y,f2')]) => if ((f2=Form.Disjunction(f1',f2') orelse f2=Form.Disjunction(f2',f1')) andalso (f1=f4) andalso (f3=f4)) then true else false
+			| (Form.Identifier("3"),[Packet(x,f1')],[Packet(y,f2')],[]) => if ((f3=Form.Disjunction(f1',f2') orelse f3=Form.Disjunction(f2',f1')) andalso (f1=f4) andalso (f2=f4)) then true else false
+			| (x,y,z,t) => false
 		end
 	fun getRoot(dTree(nd)) = nd
 		| getRoot(dTree1(nd,tr1)) = nd
@@ -131,9 +187,9 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 	fun isValidTree(dt) = 
 		let
 			val inf1 = [isAxiom]
-			val inf2 = [isImplintro]
-			val inf3 = [isImplelim]
-			val inf4 = []
+			val inf2 = [isAbsurdelim,isImplintro,isConjelimlt,isConjelimrt,isDisjuncintrolt,isDisjuncintrort]
+			val inf3 = [isConjintro,isImplelim]
+			val inf4 = [isDisjuncelim]
 			fun applier([],nds) = false
 				| applier(x::xs,nds) = if(x(nds)) then true else applier(xs,nds)
 		in case dt
