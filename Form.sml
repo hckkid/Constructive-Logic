@@ -18,6 +18,8 @@ signature FORM = sig
 	val parse : string -> form
 	val parse_tklst : token list -> form*token list
 	val format : form -> string
+	val getBoundVariables : form -> vrbl list
+	val getFreeVariables : form -> vrbl list
 end
 structure Form :> FORM = struct
 	datatype token =
@@ -239,7 +241,7 @@ structure Form :> FORM = struct
 				| _ => raise SyntaxError ("Unexpected Input .\n")
 		end
 		handle LexicalError => raise SyntaxError ("Invalid Input .\n")
-fun format_exp Absurdum = [#"_"]
+	fun format_exp Absurdum = [#"_"]
 		| format_exp (Predicate(P,lst)) = 
 			let
 				fun printlst ([]) = []
@@ -277,5 +279,21 @@ fun format_exp Absurdum = [#"_"]
 		| format_exp (Substitution(x,Vrbl(y),Vrbl(z))) = (format_exp(x) @ [#"["] @ String.explode(y) @ [#"/"] @ String.explode(z) @ [#"]"] )
 		| format_exp (Universal(Vrbl(x),y)) = ([#"*"] @ [#"$"] @ String.explode(x) @ [#"."] @ format_exp(y))
 		| format_exp (Existential(Vrbl(x),y)) = ([#"$"] @ [#"$"] @ String.explode(x) @ [#"."] @ format_exp(y))
+	fun getBoundVariables (Predicate(nm,vrlst)) = []
+		| getBoundVariables (Negation(f1)) = getBoundVariables(f1)
+		| getBoundVariables (Conjunction(f1,f2)) = Set.union(getBoundVariables(f1),getBoundVariables(f2))
+		| getBoundVariables (Disjunction(f1,f2)) = Set.union(getBoundVariables(f1),getBoundVariables(f2))
+		| getBoundVariables (Implication(f1,f2)) = Set.union(getBoundVariables(f1),getBoundVariables(f2))
+		| getBoundVariables (Existential(vr,f2)) = Set.union([vr],getBoundVariables(f2))
+		| getBoundVariables (Universal(vr,f2)) = Set.union([vr],getBoundVariables(f2))
+		| getBoundVariables (Substitution(f1,vr1,vr2)) = getBoundVariables(f1)
+	fun getFreeVariables (Predicate(nm,vrlst)) = vrlst
+		| getFreeVariables (Negation(f1)) = getFreeVariables(f1)
+		| getFreeVariables (Conjunction(f1,f2)) = Set.union(getFreeVariables(f1),getFreeVariables(f2))
+		| getFreeVariables (Disjunction(f1,f2)) = Set.union(getFreeVariables(f1),getFreeVariables(f2))
+		| getFreeVariables (Implication(f1,f2)) = Set.union(getFreeVariables(f1),getFreeVariables(f2))
+		| getFreeVariables (Existential(vr,f2)) = Set.diff(getFreeVariables(f2),[vr])
+		| getFreeVariables (Universal(vr,f2)) = Set.diff(getFreeVariables(f2),[vr])
+		| getFreeVariables (Substitution(f1,vr1,vr2)) = Set.union(Set.union(getFreeVariables(f1),[vr1]),[vr2])
 	fun format f = String.implode (format_exp f)
 end;

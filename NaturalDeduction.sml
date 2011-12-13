@@ -100,6 +100,10 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 				end
 		in getTreeFromtuple(deductTree(fetchInput(str),[]))
 		end
+	fun getFreevars([]) = []
+		| getFreevars(Packet(vr,f)::rem)=Set.union(vr::Form.getFreeVariables(f),getFreevars(rem))
+	fun getBoundvars([]) = []
+		| getBoundvars(Packet(vr,f)::rem)=Set.union(Form.getBoundVariables(f),getBoundvars(rem))
 	fun isAxiom(dNode(lst1,f1)) =
 		let
 			fun belongsNew([],f) = false
@@ -180,6 +184,39 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 			| (Form.Identifier("3"),[Packet(x,f1')],[Packet(y,f2')],[]) => if ((f3=Form.Disjunction(f1',f2') orelse f3=Form.Disjunction(f2',f1')) andalso (f1=f4) andalso (f2=f4)) then true else false
 			| (x,y,z,t) => false
 		end
+	fun isUniintro(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f2,truthVal,f1)
+			of (Form.Universal(x,y),true,Form.Substitution(p,r,s)) => if (x=s andalso y=p andalso (Set.diff([r],Set.union(getFreevars(lst1),Form.getFreeVariables(p))))=[r]) then true else false
+			| (x,y,z) => false
+		end
+	fun isUnielim(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f1,truthVal,f2)
+			of (Form.Universal(x,y),true,Form.Substitution(p,r,s)) => if (x=s andalso y=p) then true else false
+			| (x,y,z) => false
+		end
+	fun isExistentialintro(dNode(lst1,f1),dNode(lst2,f2)) =
+		let
+			val truthVal = (Set.equals(lst1,lst2))
+		in case (f2,truthVal,f1)
+			of (Form.Existential(x,y),true,Form.Substitution(p,r,s)) => if (x=s andalso y=p) then true else false
+			| (x,y,z) => false
+		end
+	fun isExistentialelim(dNode(lst1,f1),dNode(lst2,f2),dNode(lst3,f3)) =
+		let
+			val truthVal = if (Set.equals(lst1,lst3) andalso not(Set.equals(lst2,lst3))) then Form.Identifier("1")
+						 	else if (Set.equals(lst2,lst3) andalso not(Set.equals(lst1,lst3))) then Form.Identifier("2")
+							else Form.Identifier("3")
+			val df1 = Set.diff(lst1,lst3)
+			val df2 = Set.diff(lst2,lst3)
+		in case (truthVal,df1,df2,f1,f2)
+			of (Form.Identifier("1"),[],[Packet(t,Form.Substitution(p,r,s))],Form.Existential(x,y),f) => if (x=s andalso y=p andalso (Set.diff([r],Set.union(getFreevars(lst1),Form.getFreeVariables(p)))=[r])) then true else false
+			| (Form.Identifier("2"),[Packet(t,Form.Substitution(p,r,s))],[],f,Form.Existential(x,y)) => if (x=s andalso y=p andalso (Set.diff([r],Set.union(getFreevars(lst2),Form.getFreeVariables(p))))=[r]) then true else false
+			| (p,q,r,s,t) => false
+		end
 	fun getRoot(dTree(nd)) = nd
 		| getRoot(dTree1(nd,tr1)) = nd
 		| getRoot(dTree2(nd,tr1,tr2)) = nd
@@ -187,8 +224,8 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 	fun isValidTree(dt) = 
 		let
 			val inf1 = [isAxiom]
-			val inf2 = [isAbsurdelim,isImplintro,isConjelimlt,isConjelimrt,isDisjuncintrolt,isDisjuncintrort]
-			val inf3 = [isConjintro,isImplelim]
+			val inf2 = [ isAbsurdelim , isImplintro , isConjelimlt , isConjelimrt , isDisjuncintrolt , isDisjuncintrort , isUniintro,isUnielim , isExistentialintro ]
+			val inf3 = [isConjintro , isImplelim , isExistentialelim]
 			val inf4 = [isDisjuncelim]
 			fun applier([],nds) = false
 				| applier(x::xs,nds) = if(x(nds)) then true else applier(xs,nds)
