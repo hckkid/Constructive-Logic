@@ -1,7 +1,7 @@
 use "Form.sml";
 signature GENTZENSYSTEM = sig
 	datatype sequentNode = sNode of Form.form list * Form.form
-	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree | sTree3 of sequentNode*sequentTree*sequentTree*sequentTree
+	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree
 	val parse_sequentTree : string -> sequentTree
 	exception TreeException of string
 	val parse_node : Form.token list -> sequentNode * Form.token list

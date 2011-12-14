@@ -176,9 +176,9 @@ structure GentzenSystem :> GENTZENSYSTEM = struct
 														(x=b andalso y=a) then true else false
 			| (x,y,z,t) => false
 		end
-	fun isDisjuncrt(sNode(lst1,f1),sNode(lst2,f2),sNode(lst3,f3)) =
+	fun isDisjuncrt(sNode(lst1,f1),sNode(lst2,f2)) =
 		let
-			val truthVal = (eqNew(lst1,lst2) andalso eqNew(lst2,lst3))
+			val truthVal = (eqNew(lst1,lst2))
 		in case (f2,truthVal)
 			of (Form.Disjunction(x,y),true) => if (x=f1 orelse y=f1) then true else false
 			| (x,y) => false

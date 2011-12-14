@@ -224,8 +224,8 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 	fun isValidTree(dt) = 
 		let
 			val inf1 = [isAxiom]
-			val inf2 = [ isAbsurdelim , isImplintro , isConjelimlt , isConjelimrt , isDisjuncintrolt , isDisjuncintrort , isUniintro,isUnielim , isExistentialintro , isExistentialelim ]
-			val inf3 = [isConjintro,isImplelim]
+			val inf2 = [ isAbsurdelim , isImplintro , isConjelimlt , isConjelimrt , isDisjuncintrolt , isDisjuncintrort , isUniintro,isUnielim , isExistentialintro ]
+			val inf3 = [isConjintro , isImplelim , isExistentialelim]
 			val inf4 = [isDisjuncelim]
 			fun applier([],nds) = false
 				| applier(x::xs,nds) = if(x(nds)) then true else applier(xs,nds)
