@@ -1,17 +1,37 @@
-use "Form.sml";
 signature GENTZENSYSTEM = sig
 	datatype sequentNode = sNode of Form.form list * Form.form
-	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree | sTree3 of sequentNode*sequentTree*sequentTree*sequentTree
+	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree
 	val parse_sequentTree : string -> sequentTree
 	exception TreeException of string
 	val parse_node : Form.token list -> sequentNode * Form.token list
 	val fetchInput : string -> Form.token list
+	val parse_sequentTree : string -> sequentTree
+	val getFreevars : Form.form list -> Form.vrbl list
+	val getBoundvars : Form.form list -> Form.vrbl list
+	val belongsNW : Form.form*Form.form list -> bool
+	val deleteElem : Form.form*Form.form list -> Form.form list
+	val diffnew : Form.form list*Form.form list -> Form.form list
+	val eqNew : Form.form list * Form.form list -> bool
 	val isAxiom : sequentNode -> bool
+	val isAbsurdelim : sequentNode*sequentNode -> bool
+	val isImplrt : sequentNode*sequentNode -> bool
+	val isContraclt : sequentNode*sequentNode -> bool
+	val isConjlt : sequentNode*sequentNode -> bool
+	val isDisjuncrt : sequentNode*sequentNode -> bool
+	val isUnirt : sequentNode*sequentNode -> bool
+	val isUnilt : sequentNode*sequentNode -> bool
+	val isExistlt : sequentNode*sequentNode -> bool
+	val isExistrt : sequentNode*sequentNode -> bool
+	val isConjrt : sequentNode*sequentNode*sequentNode -> bool
+	val isCut : sequentNode*sequentNode*sequentNode -> bool
+	val isDisjunclt : sequentNode*sequentNode*sequentNode -> bool
+	val isImpllt : sequentNode*sequentNode*sequentNode -> bool
+	val getRoot : sequentTree -> sequentNode
 	val isValidTree : sequentTree ->bool
 end
 structure GentzenSystem :> GENTZENSYSTEM = struct
 	datatype sequentNode = sNode of Form.form list * Form.form
-	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree | sTree3 of sequentNode*sequentTree*sequentTree*sequentTree
+	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree
 	exception TreeException of string
 	fun parse_node (Form.Turnstile::xs) = 
 			let
@@ -63,7 +83,6 @@ structure GentzenSystem :> GENTZENSYSTEM = struct
 										(let val (trlst,remlst) = deductTrees(tklst'',#"\t"::lst') in case trlst of
 										[x] => (sTree1(nd,x),remlst)
 										| [x,y] => (sTree2(nd,x,y),remlst)
-										| [x,y,z] => (sTree3(nd,x,y,z),remlst) 
 										| (f) => raise TreeException "More tree nodes" end)
 								else if(compareTabs(tklst'',#"\t"::lst') = "More") 
 									then raise TreeException "Wrongly Structured"
@@ -218,7 +237,6 @@ structure GentzenSystem :> GENTZENSYSTEM = struct
 	fun getRoot(sTree(nd)) = nd
 		| getRoot(sTree1(nd,tr1)) = nd
 		| getRoot(sTree2(nd,tr1,tr2)) = nd
-		| getRoot(sTree3(nd,tr1,tr2,tr3)) = nd
 	fun isValidTree(dt) = 
 		let
 			val inf1 = [isAxiom]

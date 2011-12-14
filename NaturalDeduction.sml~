@@ -1,15 +1,27 @@
-use "Form.sml";
 signature NATURALDEDUCTION = sig
 	datatype packet = Packet of Form.vrbl*Form.form
 	datatype deductionNode = dNode of packet list * Form.form
 	datatype deductionTree = dTree of deductionNode | dTree1 of deductionNode*deductionTree | dTree2 of deductionNode*deductionTree*deductionTree | dTree3 of deductionNode*deductionTree*deductionTree*deductionTree
-	val parse_deductionTree : string -> deductionTree
 	exception TreeException of string
 	val parse_node : Form.token list -> deductionNode * Form.token list
 	val fetchInput : string -> Form.token list
+	val parse_deductionTree : string -> deductionTree
+	val getFreevars : packet list -> Form.vrbl list
+	val getBoundvars : packet list -> Form.vrbl list
 	val isAxiom : deductionNode -> bool
 	val isImplintro : deductionNode*deductionNode -> bool
 	val isImplelim : deductionNode*deductionNode*deductionNode -> bool
+	val isConjintro : deductionNode*deductionNode*deductionNode -> bool
+	val isConjelimlt : deductionNode*deductionNode -> bool
+	val isConjelimrt : deductionNode*deductionNode -> bool
+	val isDisjuncintrolt : deductionNode*deductionNode -> bool
+	val isDisjuncintrort : deductionNode*deductionNode -> bool
+	val isDisjuncelim : deductionNode*deductionNode*deductionNode*deductionNode -> bool
+	val isUniintro : deductionNode*deductionNode -> bool
+	val isUnielim : deductionNode*deductionNode -> bool
+	val isExistentialintro : deductionNode*deductionNode -> bool
+	val isExistentialelim : deductionNode*deductionNode*deductionNode -> bool
+	val getRoot : deductionTree -> deductionNode
 	val isValidTree : deductionTree ->bool
 end
 structure NaturalDeduction :> NATURALDEDUCTION = struct
