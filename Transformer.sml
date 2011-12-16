@@ -3,10 +3,18 @@ use "NaturalDeduction.sml";
 use "GentzenSystem.sml";
 signature TRANSFORM = sig
 	val transformSequent : NaturalDeduction.deductionTree -> GentzenSystem.sequentTree
+	val doSubstitute : (Form.vrbl*Form.vrbl) list * NaturalDeduction.packet -> NaturalDeduction.packet
+	val doSubstitution : (Form.vrbl*Form.vrbl) list * NaturalDeduction.packet list -> NaturalDeduction.packet list
+	val tostring : string * char list -> string
+	val nextName : string * char list * string list -> string
+	val firstName : string * string list -> string
+	val nameIt : Form.form list * Form.form list * string list * string -> (string * Form.form) list
+(*	val transformDeduction : GentzenSystem.sequentTree -> NaturalDeduction.deductionTree *)
 end
 structure Transform :> TRANSFORM = struct
 	datatype flags = flg1 | flg2 | flg3 | flg4 | flg5 | flg6 | flg7 | flg8 | flg9 | flg0
 	exception ConversionError of string
+	exception NameError of string
 	fun eraseTags [] = []
 		| eraseTags (NaturalDeduction.Packet(x,f)::rem) = f::eraseTags(rem)
 	fun transformSequent (dt) = 
@@ -84,4 +92,18 @@ structure Transform :> TRANSFORM = struct
 			| NaturalDeduction.dTree2(nd,tr1,tr2) => handler3(nd,tr1,tr2)
 			| NaturalDeduction.dTree3(nd,tr1,tr2,tr3) => handler4(nd,tr1,tr2,tr3)
 		end
+	fun doSubstitute([],y) = y
+		| doSubstitute((x1,x2)::rem,NaturalDeduction.Packet(x,f)) = if (x=x2) then NaturalDeduction.Packet(x1,f) else
+			doSubstitute(rem,NaturalDeduction.Packet(x,f))
+	fun doSubstitution(x,[]) = []
+		| doSubstitution(x,y::ys) = doSubstitute(x,y)::doSubstitution(x,ys)
+	fun tostring(str,[]) = str
+		| tostring(str,x) = String.concat([str,String.implode(x)])
+	fun nextName(str,x,[]) = tostring(str,#"'"::x)
+		| nextName(str,x,y) = if (Set.belongs(tostring(str,#"'"::x),y)) then nextName(str,#"'"::x,y) else tostring(str,#"'"::x)
+	fun firstName(str,[]) = str
+		| firstName(str,y) = if (Set.belongs(str,y)) then nextName(str,[],y) else str
+	fun nameIt([],pPoset,rsrvd,str) = []
+		| nameIt(x,[],rsrvd,str) = raise NameError("Out of poset")
+		| nameIt(x,y::ys,rsrvd,str) = if (GentzenSystem.belongsNW(y,x)) then (firstName(str,rsrvd),y)::nameIt(GentzenSystem.deleteElem(y,x),y::ys,str::rsrvd,firstName(str,rsrvd)) else nameIt(x,y::ys,rsrvd,str)
 end

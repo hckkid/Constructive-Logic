@@ -1,13 +1,16 @@
 signature GENTZENSYSTEM = sig
 	datatype sequentNode = sNode of Form.form list * Form.form
 	datatype sequentTree = sTree of sequentNode | sTree1 of sequentNode*sequentTree | sTree2 of sequentNode*sequentTree*sequentTree
-	val parse_sequentTree : string -> sequentTree
 	exception TreeException of string
 	val parse_node : Form.token list -> sequentNode * Form.token list
 	val fetchInput : string -> Form.token list
 	val parse_sequentTree : string -> sequentTree
 	val getFreevars : Form.form list -> Form.vrbl list
 	val getBoundvars : Form.form list -> Form.vrbl list
+	val getPrednames : Form.form list -> string list
+	val getNames : sequentNode -> string list
+	val getAllNames : sequentTree -> string list
+	val getPropositions : Form.form list -> Form.form list
 	val belongsNW : Form.form*Form.form list -> bool
 	val deleteElem : Form.form*Form.form list -> Form.form list
 	val diffnew : Form.form list*Form.form list -> Form.form list
@@ -114,10 +117,21 @@ structure GentzenSystem :> GENTZENSYSTEM = struct
 				end
 		in getTreeFromtuple(deductTree(fetchInput(str),[]))
 		end
+	fun getPrednames([]) = []
+		| getPrednames(f::rem)=Set.union(Form.getPredNames(f),getPrednames(rem))
 	fun getFreevars([]) = []
 		| getFreevars(f::rem)=Set.union(Form.getFreeVariables(f),getFreevars(rem))
 	fun getBoundvars([]) = []
 		| getBoundvars(f::rem)=Set.union(Form.getBoundVariables(f),getBoundvars(rem))
+	fun getNames(sNode(ls,f)) = Set.union(Form.getVarnames(Set.union(getBoundvars(ls),getFreevars(ls))),getPrednames(ls))
+	fun getAllNames (sTree(nd)) = getNames(nd)
+		| getAllNames (sTree1(nd,tr1)) = Set.union(getNames(nd),getAllNames(tr1))
+		| getAllNames (sTree2(nd,tr1,tr2)) = Set.union(getNames(nd),Set.union(getAllNames(tr1),getAllNames(tr2)))
+	fun getPropositions ([]) = []
+		| getPropositions (x::xs) = Set.union([x],getPropositions(xs))
+	fun getAllPropositions (sTree(sNode(ls,f))) = getPropositions(ls)
+		| getAllPropositions (sTree1(sNode(ls,f),tr1)) = Set.union(getPropositions(ls),getAllPropositions(tr1))
+		| getAllPropositions (sTree2(sNode(ls,f),tr1,tr2)) = Set.union(getNames(ls),Set.union(getAllPropositions(tr1),getAllPropositions(tr2)))
 	fun belongsNW(x,[]) = false
 		| belongsNW(x,y::ys) = if (x=y) then true else belongsNW(x,ys)
 	fun deleteElem(x,[]) = []

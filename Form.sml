@@ -18,6 +18,8 @@ signature FORM = sig
 	val parse : string -> form
 	val parse_tklst : token list -> form*token list
 	val format : form -> string
+	val getPredNames : form -> string list
+	val getVarnames : vrbl list -> string list
 	val getBoundVariables : form -> vrbl list
 	val getFreeVariables : form -> vrbl list
 end
@@ -279,6 +281,16 @@ structure Form :> FORM = struct
 		| format_exp (Substitution(x,Vrbl(y),Vrbl(z))) = (format_exp(x) @ [#"["] @ String.explode(y) @ [#"/"] @ String.explode(z) @ [#"]"] )
 		| format_exp (Universal(Vrbl(x),y)) = ([#"*"] @ [#"$"] @ String.explode(x) @ [#"."] @ format_exp(y))
 		| format_exp (Existential(Vrbl(x),y)) = ([#"$"] @ [#"$"] @ String.explode(x) @ [#"."] @ format_exp(y))
+	fun getPredNames (Predicate(nm,vrlst)) = [nm]
+		| getPredNames (Negation(f1)) = getPredNames(f1)
+		| getPredNames (Conjunction(f1,f2)) = Set.union(getPredNames(f1),getPredNames(f2))
+		| getPredNames (Disjunction(f1,f2)) = Set.union(getPredNames(f1),getPredNames(f2))
+		| getPredNames (Implication(f1,f2)) = Set.union(getPredNames(f1),getPredNames(f2))
+		| getPredNames (Existential(vr,f2)) = getPredNames(f2)
+		| getPredNames (Universal(vr,f2)) = getPredNames(f2)
+		| getPredNames (Substitution(f1,vr1,vr2)) = getPredNames(f1)
+	fun getVarnames ([]) = []
+		| getVarnames (Vrbl(x)::xs) = x::getVarnames(xs)
 	fun getBoundVariables (Predicate(nm,vrlst)) = []
 		| getBoundVariables (Negation(f1)) = getBoundVariables(f1)
 		| getBoundVariables (Conjunction(f1,f2)) = Set.union(getBoundVariables(f1),getBoundVariables(f2))
