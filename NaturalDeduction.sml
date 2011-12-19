@@ -9,6 +9,7 @@ signature NATURALDEDUCTION = sig
 	val getPrednames : packet list -> string list
 	val getFreevars : packet list -> Form.vrbl list
 	val getBoundvars : packet list -> Form.vrbl list
+	val getpcktvars : packet list -> Form.vrbl list
 	val getNames : deductionNode -> string list
 	val getAllNames : deductionTree -> string list
 	val isAxiom : deductionNode -> bool
@@ -118,6 +119,8 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 		end
 	fun getPrednames([]) = []
 		| getPrednames(Packet(vr,f)::rem)=Set.union(Form.getPredNames(f),getPrednames(rem))
+	fun getpcktvars([]) = []
+		| getpcktvars(Packet(vr,f)::rem)=vr::getpcktvars(rem)
 	fun getFreevars([]) = []
 		| getFreevars(Packet(vr,f)::rem)=Set.union(vr::Form.getFreeVariables(f),getFreevars(rem))
 	fun getBoundvars([]) = []

@@ -9,6 +9,7 @@ signature NATURALDEDUCTION = sig
 	val getPrednames : packet list -> string list
 	val getFreevars : packet list -> Form.vrbl list
 	val getBoundvars : packet list -> Form.vrbl list
+
 	val getNames : deductionNode -> string list
 	val getAllNames : deductionTree -> string list
 	val isAxiom : deductionNode -> bool
@@ -118,15 +119,17 @@ structure NaturalDeduction :> NATURALDEDUCTION = struct
 		end
 	fun getPrednames([]) = []
 		| getPrednames(Packet(vr,f)::rem)=Set.union(Form.getPredNames(f),getPrednames(rem))
+	fun getpcktvars([]) = []
+		| getpcktvars(Packet(vr,f)::rem)=vr::getpcktvars(rem)
 	fun getFreevars([]) = []
 		| getFreevars(Packet(vr,f)::rem)=Set.union(vr::Form.getFreeVariables(f),getFreevars(rem))
 	fun getBoundvars([]) = []
 		| getBoundvars(Packet(vr,f)::rem)=Set.union(Form.getBoundVariables(f),getBoundvars(rem))
 	fun getNames(dNode(ls,f)) = Set.union(Form.getVarnames(Set.union(getBoundvars(ls),getFreevars(ls))),getPrednames(ls))
-	fun getAllNames dTree(nd) = getNames(nd)
-		| getAllNames dTree1(nd,tr1) = Set.union(getNames(nd),getAllNames(tr1))
-		| getAllNames dTree2(nd,tr1,tr2) = Set.union(getNames(nd),Set.union(getAllNames(tr1),getAllNames(tr2)))
-		| getAllNames dTree3(nd,tr1,tr2,tr3) = Set.union(getNames(nd),Set.union(getAllNames(tr1),Set.union(getAllNames(tr2),getAllNames(tr3))))
+	fun getAllNames (dTree(nd)) = getNames(nd)
+		| getAllNames (dTree1(nd,tr1)) = Set.union(getNames(nd),getAllNames(tr1))
+		| getAllNames (dTree2(nd,tr1,tr2)) = Set.union(getNames(nd),Set.union(getAllNames(tr1),getAllNames(tr2)))
+		| getAllNames (dTree3(nd,tr1,tr2,tr3)) = Set.union(getNames(nd),Set.union(getAllNames(tr1),Set.union(getAllNames(tr2),getAllNames(tr3))))
 	fun isAxiom(dNode(lst1,f1)) =
 		let
 			fun belongsNew([],f) = false

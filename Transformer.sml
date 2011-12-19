@@ -5,11 +5,22 @@ signature TRANSFORM = sig
 	val transformSequent : NaturalDeduction.deductionTree -> GentzenSystem.sequentTree
 	val doSubstitute : (Form.vrbl*Form.vrbl) list * NaturalDeduction.packet -> NaturalDeduction.packet
 	val doSubstitution : (Form.vrbl*Form.vrbl) list * NaturalDeduction.packet list -> NaturalDeduction.packet list
+	val doSubstitutionND : (Form.vrbl*Form.vrbl) list * NaturalDeduction.deductionNode -> NaturalDeduction.deductionNode
+	val doSubstitutionTR : (Form.vrbl*Form.vrbl) list * NaturalDeduction.deductionTree -> NaturalDeduction.deductionTree
 	val tostring : string * char list -> string
 	val nextName : string * char list * string list -> string
 	val firstName : string * string list -> string
 	val nameIt : Form.form list * Form.form list * string list * string -> (string * Form.form) list
-(*	val transformDeduction : GentzenSystem.sequentTree -> NaturalDeduction.deductionTree *)
+	val applyNaming : (string * Form.form) list -> NaturalDeduction.packet list
+	val rectifyIt : NaturalDeduction.deductionTree * (Form.vrbl * Form.vrbl) list * String.string * String.string list-> NaturalDeduction.deductionTree
+	val addToNode : NaturalDeduction.packet list*NaturalDeduction.deductionNode -> NaturalDeduction.deductionNode
+	val addToDeduction : NaturalDeduction.packet list*NaturalDeduction.deductionTree -> NaturalDeduction.deductionTree
+	val replaceNodeData : NaturalDeduction.packet list*NaturalDeduction.packet list*NaturalDeduction.deductionNode -> NaturalDeduction.deductionNode
+	val replaceTreeData : NaturalDeduction.packet list*NaturalDeduction.packet list*NaturalDeduction.deductionTree -> NaturalDeduction.deductionTree
+	val findPrimeSub : Form.form list * NaturalDeduction.deductionNode -> (Form.vrbl*Form.vrbl) list 
+	val doPrimeSub : Form.form list * NaturalDeduction.deductionTree -> NaturalDeduction.deductionTree 
+	val tmptransDeduction : GentzenSystem.sequentTree * Form.form list * String.string * String.string list -> NaturalDeduction.deductionTree
+	val transformDeduction : GentzenSystem.sequentTree * string -> NaturalDeduction.deductionTree
 end
 structure Transform :> TRANSFORM = struct
 	datatype flags = flg1 | flg2 | flg3 | flg4 | flg5 | flg6 | flg7 | flg8 | flg9 | flg0
@@ -93,10 +104,14 @@ structure Transform :> TRANSFORM = struct
 			| NaturalDeduction.dTree3(nd,tr1,tr2,tr3) => handler4(nd,tr1,tr2,tr3)
 		end
 	fun doSubstitute([],y) = y
-		| doSubstitute((x1,x2)::rem,NaturalDeduction.Packet(x,f)) = if (x=x2) then NaturalDeduction.Packet(x1,f) else
-			doSubstitute(rem,NaturalDeduction.Packet(x,f))
+		| doSubstitute((x1,x2)::rem,NaturalDeduction.Packet(x,f)) = if (x=x2) then doSubstitute(rem,NaturalDeduction.Packet(x1,f)) else doSubstitute(rem,NaturalDeduction.Packet(x,f))
 	fun doSubstitution(x,[]) = []
 		| doSubstitution(x,y::ys) = doSubstitute(x,y)::doSubstitution(x,ys)
+	fun doSubstitutionND(x,NaturalDeduction.dNode(ls,f)) = NaturalDeduction.dNode(doSubstitution(x,ls),f)
+	fun doSubstitutionTR(x,NaturalDeduction.dTree(nd)) = NaturalDeduction.dTree(doSubstitutionND(x,nd))
+		| doSubstitutionTR(x,NaturalDeduction.dTree1(nd,tr1)) = NaturalDeduction.dTree1(doSubstitutionND(x,nd),doSubstitutionTR(x,tr1))
+		| doSubstitutionTR(x,NaturalDeduction.dTree2(nd,tr1,tr2)) = NaturalDeduction.dTree2(doSubstitutionND(x,nd),doSubstitutionTR(x,tr1),doSubstitutionTR(x,tr2))
+		| doSubstitutionTR(x,NaturalDeduction.dTree3(nd,tr1,tr2,tr3)) = NaturalDeduction.dTree3(doSubstitutionND(x,nd),doSubstitutionTR(x,tr1),doSubstitutionTR(x,tr2),doSubstitutionTR(x,tr3))
 	fun tostring(str,[]) = str
 		| tostring(str,x) = String.concat([str,String.implode(x)])
 	fun nextName(str,x,[]) = tostring(str,#"'"::x)
@@ -105,5 +120,147 @@ structure Transform :> TRANSFORM = struct
 		| firstName(str,y) = if (Set.belongs(str,y)) then nextName(str,[],y) else str
 	fun nameIt([],pPoset,rsrvd,str) = []
 		| nameIt(x,[],rsrvd,str) = raise NameError("Out of poset")
-		| nameIt(x,y::ys,rsrvd,str) = if (GentzenSystem.belongsNW(y,x)) then (firstName(str,rsrvd),y)::nameIt(GentzenSystem.deleteElem(y,x),y::ys,str::rsrvd,firstName(str,rsrvd)) else nameIt(x,y::ys,rsrvd,str)
+		| nameIt(x,y::ys,rsrvd,str) = if (GentzenSystem.belongsNW(y,x)) then (firstName(str,rsrvd),y)::nameIt(GentzenSystem.deleteElem(y,x),y::ys,str::rsrvd,firstName(str,rsrvd)) else nameIt(x,ys,rsrvd,str)
+	fun applyNaming([]) = []
+		| applyNaming((x,y)::rem) = NaturalDeduction.Packet(Form.Vrbl(x),y)::applyNaming(rem)
+	fun rectifyIt (x,sblst,str',rsrvdwds) = 
+		let 
+			fun getfst(x,y) = x
+			fun getlst(x,y) = y
+			fun newSbStmodifier(lst,sblst,st,rsr) = 
+				let
+					fun inleft(x,[]) = false
+						| inleft(x,(y,z)::rem) = if (x=y) then true else inleft(x,rem)
+					fun inright(x,[]) = false
+						| inright(x,(y,z)::rem) = if (x=y) then true else inright(x,rem)
+					fun getOdds ([],ls) = []
+						| getOdds(x::xs,ls) = if (inright(x,ls)) then getOdds(xs,ls) else x::getOdds(xs,ls)
+					fun assignNewNames ([],str,rsrvd) = []
+						| assignNewNames (x::xs,str,rsrvd) = (x,Form.Vrbl(firstName(str,rsrvd)))::assignNewNames (xs,firstName(str,rsrvd),rsrvd)
+					fun assignNewStr ([],str,rsrvd) = str
+						| assignNewStr (x::xs,str,rsrvd) = assignNewStr (xs,firstName(str,rsrvd),rsrvd)
+				in (Set.union(sblst,assignNewNames(lst,st,rsr)),assignNewStr(lst,st,rsr))
+				end
+			fun st'(lst') = getlst(newSbStmodifier(NaturalDeduction.getpcktvars(lst'),sblst,str',rsrvdwds))
+			fun lst''(lst') = getfst(newSbStmodifier(NaturalDeduction.getpcktvars(lst'),sblst,str',rsrvdwds))
+		in case x of
+			(NaturalDeduction.dTree(NaturalDeduction.dNode(lst',f))) => NaturalDeduction.dTree(NaturalDeduction.dNode(doSubstitution(lst''(lst'),lst'),f))
+			| (NaturalDeduction.dTree1(NaturalDeduction.dNode(lst',f),tr1)) => NaturalDeduction.dTree1(NaturalDeduction.dNode(doSubstitution(lst''(lst'),lst'),f),rectifyIt(tr1,lst''(lst'),st'(lst'),rsrvdwds))
+			| (NaturalDeduction.dTree2(NaturalDeduction.dNode(lst',f),tr1,tr2)) => NaturalDeduction.dTree2(NaturalDeduction.dNode(doSubstitution(lst''(lst'),lst'),f),rectifyIt(tr1,lst''(lst'),st'(lst'),rsrvdwds),rectifyIt(tr1,lst''(lst'),st'(lst'),rsrvdwds))
+			| (NaturalDeduction.dTree3(NaturalDeduction.dNode(lst',f),tr1,tr2,tr3)) => NaturalDeduction.dTree3(NaturalDeduction.dNode(doSubstitution(lst''(lst'),lst'),f),rectifyIt(tr1,lst''(lst'),st'(lst'),rsrvdwds),rectifyIt(tr2,lst''(lst'),st'(lst'),rsrvdwds),rectifyIt(tr3,lst''(lst'),st'(lst'),rsrvdwds))
+		end
+	fun addToNode(vrlst,NaturalDeduction.dNode(ls,f)) = NaturalDeduction.dNode(Set.union(vrlst,ls),f)
+	fun addToDeduction(vrlst,NaturalDeduction.dTree(nd)) = NaturalDeduction.dTree(addToNode(vrlst,nd))
+		| addToDeduction(vrlst,NaturalDeduction.dTree1(nd,tr1)) = NaturalDeduction.dTree1(addToNode(vrlst,nd),addToDeduction(vrlst,tr1))
+		| addToDeduction(vrlst,NaturalDeduction.dTree2(nd,tr1,tr2)) = NaturalDeduction.dTree2(addToNode(vrlst,nd),addToDeduction(vrlst,tr1),addToDeduction(vrlst,tr2))
+		| addToDeduction(vrlst,NaturalDeduction.dTree3(nd,tr1,tr2,tr3)) = NaturalDeduction.dTree3(addToNode(vrlst,nd),addToDeduction(vrlst,tr1),addToDeduction(vrlst,tr2),addToDeduction(vrlst,tr3))
+	fun replaceNodeData(lst1,lst2,NaturalDeduction.dNode(ls,f)) = if (Set.subset(lst1,ls)) then NaturalDeduction.dNode(Set.union(lst2,Set.diff(ls,lst1)),f) else NaturalDeduction.dNode(ls,f)
+	fun replaceTreeData(lst1,lst2,NaturalDeduction.dTree(nd)) = NaturalDeduction.dTree(replaceNodeData(lst1,lst2,nd))
+		| replaceTreeData(lst1,lst2,NaturalDeduction.dTree1(nd,tr1)) = NaturalDeduction.dTree1(replaceNodeData(lst1,lst2,nd),replaceTreeData(lst1,lst2,tr1))
+		| replaceTreeData(lst1,lst2,NaturalDeduction.dTree2(nd,tr1,tr2)) = NaturalDeduction.dTree2(replaceNodeData(lst1,lst2,nd),replaceTreeData(lst1,lst2,tr1),replaceTreeData(lst1,lst2,tr2))
+		| replaceTreeData(lst1,lst2,NaturalDeduction.dTree3(nd,tr1,tr2,tr3)) = NaturalDeduction.dTree3(replaceNodeData(lst1,lst2,nd),replaceTreeData(lst1,lst2,tr1),replaceTreeData(lst1,lst2,tr2),replaceTreeData(lst1,lst2,tr3))
+	fun replaceLeafNode(lst1,f1,NaturalDeduction.dNode(ls,f2),dt) = if (Set.subset(lst1,ls) andalso f1=f2) then dt else NaturalDeduction.dTree(NaturalDeduction.dNode(ls,f2))
+	fun replaceLeafData(lst1,f,NaturalDeduction.dTree(nd),dt) = replaceLeafNode(lst1,f,nd,dt)
+		| replaceLeafData(lst1,f,NaturalDeduction.dTree1(nd,tr1),dt) = NaturalDeduction.dTree1(nd,replaceLeafData(lst1,f,tr1,dt))
+		| replaceLeafData(lst1,f,NaturalDeduction.dTree2(nd,tr1,tr2),dt) = NaturalDeduction.dTree2(nd,replaceLeafData(lst1,f,tr1,dt),replaceLeafData(lst1,f,tr2,dt))
+		| replaceLeafData(lst1,f,NaturalDeduction.dTree3(nd,tr1,tr2,tr3),dt) = NaturalDeduction.dTree3(nd,replaceLeafData(lst1,f,tr1,dt),replaceLeafData(lst1,f,tr2,dt),replaceLeafData(lst1,f,tr3,dt))
+	fun findPrimeSub(prlst,NaturalDeduction.dNode(ls,f)) = 
+		let
+			exception xyz of string
+			fun delFirstOccurences([],t) = []
+				| delFirstOccurences(NaturalDeduction.Packet(x,y)::rem,t) = if (Set.belongs(y,t)) then delFirstOccurences(rem,Set.diff(t,[y])) else x::delFirstOccurences(rem,t)
+			fun firstOccurences([],f') = []
+				| firstOccurences(NaturalDeduction.Packet(x,y)::rem,t) = if (Set.belongs(y,t)) then x::firstOccurences(rem,Set.diff(t,[y])) else firstOccurences(rem,t)
+			fun joinIt ([],[]) = []
+				| joinIt (x::xs,y::ys) = (x,y)::joinIt(xs,ys)
+				| joinIt (x,y) = raise xyz("can't join")
+		in joinIt(delFirstOccurences(ls,prlst)@firstOccurences(ls,prlst),delFirstOccurences(ls,[]))
+		end
+	fun doPrimeSub(prlst,dt) = doSubstitutionTR(findPrimeSub(prlst,NaturalDeduction.getRoot(dt)),dt)
+(*	fun replaceLeafNodes(n,rn,dTree(nd)) = 
+			let
+				
+			in case (n,rn)
+				of ((ls1,f1),(ls2,f2)) => 
+			end
+		| replaceLeafNodes(n,rn,dTree1(nd,tr1)) = dTree1(nd,replaceLeafNodes(n,rn,tr1,dTnew))
+		| replaceLeafNodes(n,rn,dTree2(nd,tr1,tr2)) = dTree2(nd,(replaceLeafNodes(n,rn,tr1,dTnew),replaceLeafNodes(n,rn,tr2,dTnew)))
+		| replaceLeafNodes(n,rn,dTree3(nd,tr1,tr2,tr3)) = dTree3(nd,(replaceLeafNodes(n,rn,tr1,dTnew),replaceLeafNodes(n,rn,tr2,dTnew),replaceLeafNodes(n,rn,tr3,dTnew))) *)
+	fun tmptransDeduction (sT,poset,str,rsrvd) = 
+		let
+			fun handler1(sq) = 
+				let
+					val GentzenSystem.sNode(x,y) = sq
+				in if (GentzenSystem.isAxiom(sq)) then NaturalDeduction.dTree(NaturalDeduction.dNode(applyNaming(nameIt(x,poset,rsrvd,str)),y)) else raise ConversionError ("Not an Axiom")
+				end
+(*			fun handler2(nd,tr1) = 
+				let
+					val NaturalDeduction.dNode(x1,y1) = nd
+					val nd2=NaturalDeduction.getRoot(tr1)
+					val NaturalDeduction.dNode(x2,y2) = nd2
+					fun getflag(nd1',nd2') = 
+						if (NaturalDeduction.isAbsurdelim(nd1',nd2')) then flg1 else 
+						if (NaturalDeduction.isImplintro(nd1',nd2')) then flg1 else 
+						if (NaturalDeduction.isConjelimlt(nd1',nd2')) then flg2 else 
+						if (NaturalDeduction.isConjelimrt(nd1',nd2')) then flg2 else 
+						if (NaturalDeduction.isDisjuncintrolt(nd1',nd2')) then flg1 else 
+						if (NaturalDeduction.isDisjuncintrort(nd1',nd2')) then flg1 else 
+						if (NaturalDeduction.isUniintro(nd1',nd2')) then flg1 else 
+						if (NaturalDeduction.isUnielim(nd1',nd2')) then flg3 else 
+						if (NaturalDeduction.isExistentialintro(nd1',nd2')) then flg1 else 
+						flg0
+				in case (getflag(nd2,nd),y1,y2)
+					of (flg1,x,y) => GentzenSystem.sTree1(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1))
+					| (flg2,x,Form.Conjunction(y,z)) => GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1) , GentzenSystem.sTree1(GentzenSystem.sNode(y2::eraseTags(x2),y1),GentzenSystem.sTree(GentzenSystem.sNode(y::z::eraseTags(x2),y1))))
+					| (flg3,x,y) => GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1) , GentzenSystem.sTree1(GentzenSystem.sNode(y2::eraseTags(x2),y1),GentzenSystem.sTree(GentzenSystem.sNode(y1::eraseTags(x2),y1))))
+					| (f,x,y) => raise ConversionError "Tree Error"
+				end 
+			fun handler3(nd,tr1,tr2) = 
+				let
+					val NaturalDeduction.dNode(x1,y1) = nd
+					val nd2=NaturalDeduction.getRoot(tr1)
+					val NaturalDeduction.dNode(x2,y2) = nd2
+					val nd3=NaturalDeduction.getRoot(tr2)
+					val NaturalDeduction.dNode(x3,y3) = nd3
+					fun getflag(nd1',nd2',nd3') = 
+						if (NaturalDeduction.isConjintro(nd1',nd2',nd3')) then flg1 else 
+						if (NaturalDeduction.isImplelim(nd1',nd2',nd3')) then flg2 else 
+						if (NaturalDeduction.isExistentialelim(nd1',nd2',nd3')) then flg3 else 
+						flg0
+				in case (getflag(nd2,nd3,nd),y2,y3)
+					of (flg1,x,y) => GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1),transformSequent(tr2))
+					| (flg2,Form.Implication(x,y),Form.Implication(p,q)) => if(x=Form.Implication(p,q)) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1),GentzenSystem.sTree2(GentzenSystem.sNode(y2::eraseTags(x1),y1),transformSequent(tr2),GentzenSystem.sTree(GentzenSystem.sNode(y1::eraseTags(x1),y1)))) else if (p=Form.Implication(x,y)) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr2),GentzenSystem.sTree2(GentzenSystem.sNode(y3::eraseTags(x1),y1),transformSequent(tr1),GentzenSystem.sTree(GentzenSystem.sNode(y1::eraseTags(x1),y1)))) else raise ConversionError "Tree Error"
+					| (flg2,Form.Implication(x,y),z) => if(x=z) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1),GentzenSystem.sTree2(GentzenSystem.sNode(y2::eraseTags(x1),y1),transformSequent(tr2),GentzenSystem.sTree(GentzenSystem.sNode(y1::eraseTags(x1),y1)))) else raise ConversionError "Tree Error"
+					| (flg2,x,Form.Implication(y,z)) => if(x=y) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr2),GentzenSystem.sTree2(GentzenSystem.sNode(y3::eraseTags(x1),y1),transformSequent(tr1),GentzenSystem.sTree(GentzenSystem.sNode(y1::eraseTags(x1),y1)))) else raise ConversionError "Tree Error"
+					| (flg3,x,y) =>
+						let
+							val trval=(Set.diff(x2,x3)=[])
+						in case trval
+							of true => GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1),GentzenSystem.sTree1(GentzenSystem.sNode(y2::eraseTags(x1),y1),transformSequent(tr2)))
+							| false => GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr2),GentzenSystem.sTree1(GentzenSystem.sNode(y3::eraseTags(x1),y1),transformSequent(tr1)))
+						end
+					| (f,x,y) => raise ConversionError "Tree Error"
+				end
+			fun handler4(nd,tr1,tr2,tr3) = 
+				let
+					val NaturalDeduction.dNode(x1,y1) = nd
+					val nd2=NaturalDeduction.getRoot(tr1)
+					val NaturalDeduction.dNode(x2,y2) = nd2
+					val nd3=NaturalDeduction.getRoot(tr2)
+					val NaturalDeduction.dNode(x3,y3) = nd3
+					val nd4=NaturalDeduction.getRoot(tr3)
+					val NaturalDeduction.dNode(x4,y4) = nd4
+					val f1=(Set.diff(x2,x1)=[])
+					val f2=(Set.diff(x3,x1)=[])
+					val f3=(Set.diff(x4,x1)=[])
+				in if (f1=true) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr1),GentzenSystem.sTree2(GentzenSystem.sNode(y2::eraseTags(x1),y1),transformSequent(tr2),transformSequent(tr3))) else if (f2=true) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr2),GentzenSystem.sTree2(GentzenSystem.sNode(y3::eraseTags(x1),y1),transformSequent(tr1),transformSequent(tr3))) else if (f3=true) then GentzenSystem.sTree2(GentzenSystem.sNode(eraseTags(x1),y1),transformSequent(tr3),GentzenSystem.sTree2(GentzenSystem.sNode(y4::eraseTags(x1),y1),transformSequent(tr1),transformSequent(tr2))) else raise ConversionError ("Not an Axiom")
+				end *)
+		in case sT 
+			of GentzenSystem.sTree(sq) => handler1(sq)
+(*			| NaturalDeduction.dTree1(nd,tr1) => handler2(nd,tr1)
+			| NaturalDeduction.dTree2(nd,tr1,tr2) => handler3(nd,tr1,tr2)
+			| NaturalDeduction.dTree3(nd,tr1,tr2,tr3) => handler4(nd,tr1,tr2,tr3) *)
+			| (x) => raise ConversionError("Unhandled")
+		end
+	fun transformDeduction(st,str) = tmptransDeduction(st,GentzenSystem.getAllPropositions(st),str,GentzenSystem.getAllNames(st))
 end

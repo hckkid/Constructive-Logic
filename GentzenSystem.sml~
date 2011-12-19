@@ -131,7 +131,7 @@ structure GentzenSystem :> GENTZENSYSTEM = struct
 		| getPropositions (x::xs) = Set.union([x],getPropositions(xs))
 	fun getAllPropositions (sTree(sNode(ls,f))) = getPropositions(ls)
 		| getAllPropositions (sTree1(sNode(ls,f),tr1)) = Set.union(getPropositions(ls),getAllPropositions(tr1))
-		| getAllPropositions (sTree2(sNode(ls,f),tr1,tr2)) = Set.union(getNames(ls),Set.union(getAllPropositions(tr1),getAllPropositions(tr2)))
+		| getAllPropositions (sTree2(sNode(ls,f),tr1,tr2)) = Set.union(getPropositions(ls),Set.union(getAllPropositions(tr1),getAllPropositions(tr2)))
 	fun belongsNW(x,[]) = false
 		| belongsNW(x,y::ys) = if (x=y) then true else belongsNW(x,ys)
 	fun deleteElem(x,[]) = []

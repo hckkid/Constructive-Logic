@@ -11,6 +11,7 @@ signature GENTZENSYSTEM = sig
 	val getNames : sequentNode -> string list
 	val getAllNames : sequentTree -> string list
 	val getPropositions : Form.form list -> Form.form list
+	val getAllPropositions : sequentTree -> Form.form list
 	val belongsNW : Form.form*Form.form list -> bool
 	val deleteElem : Form.form*Form.form list -> Form.form list
 	val diffnew : Form.form list*Form.form list -> Form.form list
